@@ -1,0 +1,21 @@
+<%- include('partials/header') -%>
+
+<h1>Home</h1>
+
+<p><%= content %></p>
+
+<% if (blogPosts && blogPosts.length > 0) { %>
+  <h2>Blog posts</h2>
+
+  <% blogPosts.forEach((post) => { %>
+    <h3><%= post.title %></h3>
+    <p>
+      <%= _.truncate(post.body, {length: 100}) %>
+      <% if (post.body.length > 100) { %>
+        <a href="/posts/<%= post.key %>">Read more</a>
+      <% } %>
+    </p>
+  <% }) %>
+<% } %>
+
+<%- include('partials/footer') -%>
