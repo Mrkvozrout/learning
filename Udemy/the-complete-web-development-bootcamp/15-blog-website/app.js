@@ -67,7 +67,7 @@ app.get('/posts/:param', (req, res) => {
 })
 
 app.listen(port, function() {
-  console.log("Server started: port" + port);
+  console.log("Server started: port=" + port);
 });
 
 
