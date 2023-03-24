@@ -69,11 +69,11 @@ app.get('/:listName', async(req, res) => {
   res.render('list', {listTitle: day, listItems: items, listKey: listKey})
 })
 
-app.post('/:listName', (req, res) => {
+app.post('/:listName', async(req, res) => {
   let listKey = getListKey(req.params.listName)
   const itemName = req.body.newItem
 
-  insertItem(listKey, itemName)
+  await insertItem(listKey, itemName)
 
   res.redirect('/' + listKey)
 })
@@ -122,9 +122,7 @@ async function insertItem(listKey, itemName) {
 
   list.items.push(new Item({name: itemName}))
 
-  list.save().then(() => {
-    console.log(`Item inserted: listKey=${listKey}, itemName=${itemName}`)
-  })
+  await list.save()
   .catch(error => {
     console.log('Failed to insert item: ' + error)
   })
