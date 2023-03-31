@@ -3,30 +3,41 @@ const bodyParser = require('body-parser')
 const ejs = require('ejs')
 const appConfig = require('./modules/config.js')
 const mongoose = require('mongoose')
-const encrypt = require('mongoose-encryption')
-const bcrypt = require('bcrypt')
+const session = require('express-session')
+const passport = require('passport')
+const passportLocalMongoose = require('passport-local-mongoose')
 
-const saltRounds = 10
 
 // Setup DB
 
 const userSchema = new mongoose.Schema({
-  email: {
-    type: String,
-    require: true,
-    unique: true
-  },
-  password: {
-    type: String,
-    require: true
-  }
+  // These should be created by passport based on the config options bellow
+  // email: {
+  //   type: String,
+  //   require: true,
+  //   unique: true
+  // },
+  // password: {
+  //   type: String,
+  //   require: true
+  // }
 })
-userSchema.plugin(encrypt, { secret: appConfig.encryptionSecret, encryptedFields: ['password'] })
+userSchema.plugin(passportLocalMongoose, {
+  usernameField: 'email',
+  usernameUnique: true
+})
 
 const User = mongoose.model('User', userSchema)
 
 
 mongoose.connect(appConfig.mongoConnectionUri)
+
+
+// Setup passport (auth)
+
+passport.use(User.createStrategy())
+passport.serializeUser(User.serializeUser())
+passport.deserializeUser(User.deserializeUser())
 
 
 // Setup app
@@ -35,6 +46,23 @@ const app = express()
 app.use(express.static('public'))
 app.use(bodyParser.urlencoded({extended: true}))
 app.set('view engine', 'ejs')
+app.set('trust proxy', 1) // trust first proxy
+
+const sessionOptions = {
+  secret: appConfig.sessionSecret,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: true
+  }
+}
+
+if (appConfig.env === 'development') {
+  sessionOptions.cookie.secure = false
+}
+
+app.use(session(sessionOptions))
+app.use(passport.session())
 
 
 // Request handlers
@@ -49,7 +77,7 @@ app.route('/login')
     res.render('login')
   })
 
-  .post(async(req, res) => {
+  .post((req, res) => {
     let email = req.body.email
     let password = req.body.password
 
@@ -58,16 +86,35 @@ app.route('/login')
       return
     }
 
-    let user = await User.findOne({
-      email: email
+    let user = new User({
+      email: email,
+      password: password
     })
 
-    if (!user || !await bcrypt.compare(password, user.password)) {
-      res.sendStatus(403)
-      return
-    }
+    req.login(user, function(err) {
+      if (err) {
+        console.log('Failed to login: ' + err);
+        res.redirect('/login')
+        return
+      }
+      
+      passport.authenticate('local')(req, res, () => {
+        res.redirect('/secrets')
+      })
+    });
+  })
 
-    res.render('secrets')
+app.route('/logout')
+
+  .get((req, res) => {
+    req.logout((err) => {
+      if (err) {
+        console.log('Failed to logout: ' + err);
+        return
+      }
+      
+      res.redirect('/')
+    })
   })
 
 app.route('/register')
@@ -76,7 +123,7 @@ app.route('/register')
     res.render('register')
   })
 
-  .post(async(req, res) => {
+  .post((req, res) => {
     let email = req.body.email
     let password = req.body.password
 
@@ -85,14 +132,28 @@ app.route('/register')
       return
     }
 
-    let hash = await bcrypt.hash(password, saltRounds);
+    User.register({email: email}, password, (err, user) => {
+      if (err) {
+        console.log(err)
+        res.redirect('/register')
+        return
+      }
 
-    await User.create({
-      email: email,
-      password: hash
+      passport.authenticate('local')(req, res, () => {
+        res.redirect('/secrets')
+      })
     })
+  })
 
-    res.redirect('/login')
+app.route('/secrets')
+
+  .get((req, res) => {
+    if (req.isAuthenticated()) {
+      res.render('secrets')
+    }
+    else {
+      res.redirect('/login')
+    }
   })
 
 app.listen(appConfig.port, () => {
