@@ -20,7 +20,8 @@ const userSchema = new mongoose.Schema({
     unique: true
   },
   googleProfileId: String,
-  facebookProfileId: String
+  facebookProfileId: String,
+  secret: String
 })
 userSchema.plugin(passportLocalMongoose, {
   usernameField: 'email',
@@ -112,7 +113,7 @@ app.use(passport.session())
 // Request handlers
 
 app.get('/', (req, res) => {
-  res.render('home')
+  res.render('home', {user: req.user})
 })
 
 app.route('/login')
@@ -164,10 +165,20 @@ app.route('/logout')
 app.route('/register')
 
   .get((req, res) => {
-    res.render('register')
+    if (req.user) {
+      res.redirect('/secrets')
+    }
+    else {
+      res.render('register')
+    }
   })
 
   .post((req, res) => {
+    if (req.user) {
+      res.redirect('/')
+      return
+    }
+
     let email = req.body.email
     let password = req.body.password
 
@@ -213,13 +224,42 @@ app.get('/auth/facebook/secrets',
 
 app.route('/secrets')
 
+  .get(async(req, res) => {
+    let secrets = await User.find({secret: {$ne: null}}, {secret: 1})
+
+    res.render('secrets', {
+      secrets: secrets,
+      user: req.user
+    })
+  })
+
+app.route('/submit')
+
   .get((req, res) => {
     if (req.isAuthenticated()) {
-      res.render('secrets')
+      res.render('submit')
     }
     else {
       res.redirect('/login')
     }
+  })
+
+  .post(async(req, res) => {
+    if (!req.isAuthenticated()) {
+      res.redirect('/login')
+      return
+    }
+
+    if (!req.user && !req.user.id && !req.body.secret) {
+      res.sendStatus(400);
+      return
+    }
+
+    let user = await User.findById(req.user.id)
+    user.secret = req.body.secret
+    await user.save()
+
+    res.redirect('/secrets')
   })
 
 app.listen(appConfig.port, () => {
