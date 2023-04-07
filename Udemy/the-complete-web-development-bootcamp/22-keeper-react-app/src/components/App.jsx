@@ -6,11 +6,16 @@ import Note from './Note'
 export default App
 
 
-function App() {
+function App(props) {
   return (
     <div>
       <Header />
-      <Note />
+      {props.defaultNotes.map(note => (
+        <Note
+          key={note.key}
+          title={note.title}
+          content={note.content} />
+      ))}
       <Footer />
     </div>
   )
