@@ -1,6 +1,8 @@
 import React from 'react'
-import ReactDOM from 'react-dom'
+import ReactDOMClient from 'react-dom/client'
 import App from './components/App'
 import defaultNotes from './notes'
 
-ReactDOM.render(<App defaultNotes={defaultNotes} />, document.getElementById('root'))
+ReactDOMClient
+.createRoot(document.getElementById('root'))
+.render(<App defaultNotes={defaultNotes} />)
