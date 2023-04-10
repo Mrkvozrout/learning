@@ -1,10 +1,14 @@
-import React from 'react'
+import React, {useState} from 'react'
+import AddIcon from '@mui/icons-material/Add'
+import Fab from '@mui/material/Fab'
+import Zoom from '@mui/material/Zoom'
 
 export default CreateArea
 
 
 function CreateArea(props) {
-  const [newNote, setNewNote] = React.useState(createEmptyNote())
+  const [newNote, setNewNote] = useState(createEmptyNote())
+  const [active, setActive] = useState(false)
 
   function handleChange(event) {
     const {name, value} = event.target
@@ -18,14 +22,32 @@ function CreateArea(props) {
 
     props.onAddNote(newNote)
     setNewNote(createEmptyNote())
+    setActive(false)
+  }
+
+  function onBlur() {
+    if (!newNote.title && !newNote.content) {
+      setActive(false)
+    }
   }
 
   return (
     <div>
-      <form>
-        <input name='title' placeholder='Title' value={newNote.title} onChange={handleChange} />
-        <textarea name='content' placeholder='Take a note...' rows='3' value={newNote.content} onChange={handleChange} />
-        <button type='button' onClick={onAddNote}>Add</button>
+      <form className='create-note'>
+        {active && <input name='title' placeholder='Title' value={newNote.title} onChange={handleChange} />}
+        <textarea
+          name='content'
+          placeholder='Take a note...'
+          rows={active ? 3 : 1}
+          value={newNote.content}
+          onChange={handleChange}
+          onFocus={() => setActive(true)}
+          onBlur={onBlur} />
+        <Zoom in={active}>
+          <Fab onClick={onAddNote}>
+            <AddIcon />
+          </Fab>
+        </Zoom>
       </form>
     </div>
   )
